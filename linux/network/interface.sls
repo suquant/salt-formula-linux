@@ -45,6 +45,13 @@ remove_iface_file_{{ f }}:
 
 {%- endfor %}
 
+{%- if network.interface is defined %}
+
+remove_cloud_init_file:
+  file.absent:
+  - name: /etc/network/interfaces.d/50-cloud-init.cfg
+
+{%- endif %}
 
 {%- for interface_name, interface in network.interface.iteritems() %}
 
@@ -121,7 +128,7 @@ ovs_port_{{ interface_name }}:
 ovs_port_{{ interface_name }}_line1:
   file.replace:
   - name: /etc/network/interfaces
-  - pattern: auto {{ interface_name }}
+  - pattern: auto {{ interface_name }}$
   - repl: ""
 
 ovs_port_{{ interface_name }}_line2:
@@ -222,6 +229,16 @@ linux_interface_ipflush_onchange_{{ interface_name }}:
   - onchanges:
     - network: linux_interface_{{ interface_name }}
 
+{%- if interface.get('restart_on_ipflush', False) %}
+
+linux_interface_restart_on_ipflush_{{ interface_name }}:
+  cmd.run:
+  - name: "ifdown {{ interface_name }}; ifup {{ interface_name }};"
+  - onchanges:
+    - cmd: linux_interface_ipflush_onchange_{{ interface_name }}
+
+{%- endif %}
+
 {%- endif %}
 
 {%- if salt['grains.get']('saltversion') < '2017.7' %}
@@ -246,7 +263,7 @@ linux_bond_interface_{{ interface_name }}:
 remove_interface_{{ network }}_line1:
   file.replace:
   - name: /etc/network/interfaces
-  - pattern: auto {{ network }}
+  - pattern: auto {{ network }}$
   - repl: ""
 
 remove_interface_{{ network }}_line2:
@@ -373,5 +390,19 @@ NetworkManager:
   - source: salt://linux/files/60-net-txqueue.rules
   - mode: 755
   - template: jinja
+  - defaults:
+    tap_custom_txqueuelen: {{ network.tap_custom_txqueuelen }}
+
+udev_reload_rules:
+  cmd.run:
+  - name: "/bin/udevadm control --reload-rules"
+  - onchanges:
+    - file: /etc/udev/rules.d/60-net-txqueue.rules
+
+udev_retrigger:
+  cmd.run:
+  - name: "/bin/udevadm trigger --attr-match=subsystem=net"
+  - onchanges:
+    - udev_reload_rules
 
 {%- endif %}

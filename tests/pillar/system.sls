@@ -19,6 +19,19 @@ linux:
     kernel:
       isolcpu: 1,2,3,4
       elevator: deadline
+      boot_options:
+        - pti=off
+        - spectre_v2=auto
+    cgroup:
+      group:
+        group_1:
+          controller:
+            cpu:
+              shares:
+                value: 250
+          mapping:
+            subjects:
+            - '@group1'
     sysfs:
       scheduler:
         block/sda/queue/scheduler: deadline
@@ -51,6 +64,7 @@ linux:
       testuser:
         enabled: true
         name: testuser
+        password: passw0rd
         sudo: true
         uid: 9999
         full_name: Test User

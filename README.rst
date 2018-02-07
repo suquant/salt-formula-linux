@@ -341,6 +341,41 @@ Ensure presence of directory:
             mode: 700
             makedirs: true
 
+Ensure presence of file by specifying it's source:
+
+.. code-block:: yaml
+
+    linux:
+      system:
+        file:
+          /tmp/test.txt:
+            source: http://example.com/test.txt
+            user: root
+            group: root
+            mode: 700
+            dir_mode: 700
+            encoding: utf-8
+            hash: <<md5 hash>>
+            makedirs: true
+
+Ensure presence of file by specifying it's contents:
+
+.. code-block:: yaml
+
+    linux:
+      system:
+        file:
+          /tmp/test.txt:
+            contents: |
+              line1
+              line2
+            user: root
+            group: root
+            mode: 700
+            dir_mode: 700
+            encoding: utf-8
+            hash: <<md5 hash>>
+            makedirs: true
 Kernel
 ~~~~~~
 
@@ -407,6 +442,18 @@ Systcl kernel parameters
             net.ipv4.tcp_keepalive_time: 30
             net.ipv4.tcp_keepalive_probes: 8
 
+Configure kernel boot options:
+
+.. code-block:: yaml
+
+    linux:
+      system:
+        kernel:
+          boot_options:
+            - elevator=deadline
+            - spectre_v2=off
+            - nopti
+
 
 CPU
 ~~~
@@ -419,6 +466,68 @@ Enable cpufreq governor for every cpu:
       system:
         cpu:
           governor: performance
+
+
+CGROUPS
+~~~~~~~
+
+Setup linux cgroups:
+
+.. code-block:: yaml
+
+    linux:
+      system:
+        cgroup:
+          enabled: true
+          group:
+            ceph_group_1:
+              controller:
+                cpu:
+                  shares:
+                    value: 250
+                cpuacct:
+                  usage:
+                    value: 0
+                cpuset:
+                  cpus:
+                    value: 1,2,3
+                memory:
+                  limit_in_bytes:
+                    value: 2G
+                  memsw.limit_in_bytes:
+                    value: 3G
+              mapping:
+                subjects:
+                - '@ceph'
+            generic_group_1:
+              controller:
+                cpu:
+                  shares:
+                    value: 250
+                cpuacct:
+                  usage:
+                    value: 0
+              mapping:
+                subjects:
+                - '*:firefox'
+                - 'student:cp'
+
+
+Shared Libraries
+~~~~~~~~~~~~~~~~
+
+Set additional shared library to Linux system library path
+
+.. code-block:: yaml
+
+    linux:
+      system:
+        ld:
+          library:
+            java:
+              - /usr/lib/jvm/jre-openjdk/lib/amd64/server
+              - /opt/java/jre/lib/amd64/server
+    
 
 Certificates
 ~~~~~~~~~~~~
@@ -993,6 +1102,27 @@ to true.
             mtu: 9100
             ipflush_onchange: true
 
+Debian static proto interfaces
+
+When you are changing interface proto from dhcp in up state to static, you
+may need to flush ip addresses and restart interface to assign ip address from a managed file.
+For example, if you want to use the interface and the ip on the bridge.
+This can be done by setting the ``ipflush_onchange`` with combination
+``restart_on_ipflush`` param set to to true.
+
+.. code-block:: yaml
+
+    linux:
+      network:
+        interface:
+          eth1:
+            enabled: true
+            type: eth
+            proto: static
+            address: 10.1.0.22
+            netmask: 255.255.255.0
+            ipflush_onchange: true
+            restart_on_ipflush: true
 
 Concatinating and removing interface files
 
@@ -1350,6 +1480,7 @@ If VXLAN is used as tenant segmentation then ip address must be set on br-prv
             type: dpdk_ovs_bridge
             address: 192.168.50.0
             netmask: 255.255.255.0
+            tag: 101
             mtu: 9000
 
 Linux storage
@@ -1524,6 +1655,29 @@ Multipath with multiple backends
             - ibm_storwize
             - fujitsu_eternus_dxl
             - hitachi_vsp1000
+
+PAM LDAP integration
+
+.. code-block:: yaml
+
+    parameters:
+      linux:
+        system:
+          auth:
+            enabled: true
+            ldap:
+              enabled: true
+              binddn: cn=bind,ou=service_users,dc=example,dc=com
+              bindpw: secret
+              uri: ldap://127.0.0.1
+              base: ou=users,dc=example,dc=com
+              ldap_version: 3
+              pagesize: 65536
+              referrals: off
+              filter:
+                passwd: (&(&(objectClass=person)(uidNumber=*))(unixHomeDirectory=*))
+                shadow: (&(&(objectClass=person)(uidNumber=*))(unixHomeDirectory=*))
+                group:  (&(objectClass=group)(gidNumber=*))
 
 Disabled multipath (the default setup)
 
